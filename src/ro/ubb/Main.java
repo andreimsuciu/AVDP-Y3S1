@@ -14,16 +14,83 @@ public class Main {
     private static double[][] yMatrix;
     private static double[][] uMatrix;
     private static double[][] vMatrix;
+    private static double[][] decodedYMatrix;
+    private static double[][] decodedUMatrix;
+    private static double[][] decodedVMatrix;
     private static ArrayList<Block> blocks = new ArrayList<>();
     public static void main(String[] args) throws IOException {
 
+        //encoder
         readImage();
         divideYMatrixIntoBlocks();
         divideUVMatricesIntoBlocks();
         printBlocks();
 
+        //decoder
+        reconstruct();
+        decode();
+
         //irrelevant test functions
         printYUVMatrices();
+    }
+
+    private static void decode() throws IOException {
+        FileWriter resultWriter = new FileWriter("resultP3.ppm");
+        resultWriter.write("P3\n" + width + " " + height + "\n" + maxValueOfByteComponent + "\n");
+
+        int R=0;
+        int G=0;
+        int B=0;
+        boolean done = false;
+        for(int heightMatrix=0; heightMatrix<height; heightMatrix++){
+            for(int widthMatrix=0; widthMatrix<width; widthMatrix++){
+                double Y=decodedYMatrix[heightMatrix][widthMatrix];
+                double U=decodedUMatrix[heightMatrix][widthMatrix];
+                double V=decodedVMatrix[heightMatrix][widthMatrix];
+                R = (int) (Y + 1.140 * V);
+                G = (int) (Y - 0.395*U - 0.581*V);
+                B = (int) (Y + 2.0232*U);
+                resultWriter.write(R+"\n"+G+"\n"+B+"\n");
+            }
+        }
+        resultWriter.close();
+    }
+    private static void reconstruct() {
+        decodedYMatrix = new double[height][width];
+        decodedUMatrix = new double[height][width];
+        decodedVMatrix = new double[height][width];
+        for(Block block: blocks) {
+            double[][] blockMatrix = block.getMatrixBlock();
+            int blockHeight = block.getPosition().getHeightTopLeft();
+            int blockWidth = block.getPosition().getWidthTopLeft();
+            if (block.getBlockType().equals("Y")) {
+                for (int heightMatrix = 0; heightMatrix < 8; heightMatrix++) {
+                    for (int widthMatrix = 0; widthMatrix < 8; widthMatrix++) {
+                        decodedYMatrix[blockHeight + heightMatrix][blockWidth + widthMatrix] = blockMatrix[heightMatrix][widthMatrix];
+                    }
+                }
+            } else if (block.getBlockType().equals("U")) {
+
+                    for (int heightMatrix = 0; heightMatrix < 4; heightMatrix++) {
+                        for (int widthMatrix = 0; widthMatrix < 4; widthMatrix++) {
+                            decodedUMatrix[blockHeight + heightMatrix * 2][blockWidth + widthMatrix * 2] = blockMatrix[heightMatrix][widthMatrix];
+                            decodedUMatrix[blockHeight + heightMatrix * 2 + 1][blockWidth + widthMatrix * 2] = blockMatrix[heightMatrix][widthMatrix];
+                            decodedUMatrix[blockHeight + heightMatrix * 2][blockWidth + widthMatrix * 2 + 1] = blockMatrix[heightMatrix][widthMatrix];
+                            decodedUMatrix[blockHeight + heightMatrix * 2 + 1][blockWidth + widthMatrix * 2 + 1] = blockMatrix[heightMatrix][widthMatrix];
+                        }
+                    }
+                } else {
+                    for (int heightMatrix = 0; heightMatrix < 4; heightMatrix++) {
+                        for (int widthMatrix = 0; widthMatrix < 4; widthMatrix++) {
+                            decodedVMatrix[blockHeight + heightMatrix * 2][blockWidth + widthMatrix * 2] = blockMatrix[heightMatrix][widthMatrix];
+                            decodedVMatrix[blockHeight + heightMatrix * 2 + 1][blockWidth + widthMatrix * 2] = blockMatrix[heightMatrix][widthMatrix];
+                            decodedVMatrix[blockHeight + heightMatrix * 2][blockWidth + widthMatrix * 2 + 1] = blockMatrix[heightMatrix][widthMatrix];
+                            decodedVMatrix[blockHeight + heightMatrix * 2 + 1][blockWidth + widthMatrix * 2 + 1] = blockMatrix[heightMatrix][widthMatrix];
+                        }
+                    }
+                }
+
+        }
     }
 
     public static void printBlocks() throws IOException {
@@ -58,7 +125,6 @@ public class Main {
     }
 
     public static void divideUVMatricesIntoBlocks(){
-        String type="U";
         boolean done = false;
 
         int widthCount=0;
@@ -89,9 +155,9 @@ public class Main {
             }
             if(heightCount==8){
                 heightCount=0;
-                Position position = new Position(yWidth,yHeight);
-                blocks.add(new Block(matrixBlockU,type,position));
-                blocks.add(new Block(matrixBlockV,type,position));
+                Position position = new Position(yHeight,yWidth);
+                blocks.add(new Block(matrixBlockU,"U",position));
+                blocks.add(new Block(matrixBlockV,"V",position));
                 matrixBlockU=new double[4][4];
                 matrixBlockV=new double[4][4];
                 yWidth+=8;
@@ -127,7 +193,7 @@ public class Main {
             }
             if(currentHeight ==8){
                 currentHeight=0;
-                Position position = new Position(yWidth,yHeight);
+                Position position = new Position(yHeight,yWidth);
                 blocks.add(new Block(matrixBlock,type,position));
                 yWidth+=8;
                 if(yWidth==width){
@@ -178,8 +244,8 @@ public class Main {
             if(currentComponent == 3){
                 currentComponent =0;
                 yMatrix[currentHeight][currentWidth/3]= 0.299*R + 0.587*G + 0.114*B;
-                uMatrix[currentHeight][currentWidth/3]= 128 - 0.1687*R - 0.3312*G + 0.5*B;
-                vMatrix[currentHeight][currentWidth/3]= 128 + 0.5*R - 0.4186*G - 0.0813*B
+                uMatrix[currentHeight][currentWidth/3]= -0.147*R - 0.289*G + 0.436*B;
+                vMatrix[currentHeight][currentWidth/3]= 0.615*R - 0.515*G - 0.100*B;
                 ;
             }
 
